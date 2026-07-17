@@ -1,0 +1,7 @@
+reportlab>=4.0
+google-genai>=0.3.0
+python-dotenv>=1.0
+tzdata>=2024.1
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9

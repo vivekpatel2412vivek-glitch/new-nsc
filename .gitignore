@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+data/snapshots/
+data/latest_report.json
+reports/
+ledger.csv
+logs/

@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NIFTY Options Dashboard</title>
+<style>
+  :root {
+    --navy: #1a2b4c;
+    --navy-light: #2a3f6b;
+    --bg: #f4f6fa;
+    --card-bg: #ffffff;
+    --border: #d9dee8;
+    --text: #1c2333;
+    --muted: #6b7280;
+    --green: #1e6b2f;
+    --red: #8a1f1f;
+    --amber: #7a4a00;
+    --amber-bg: #fff3e0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header.strip {
+    background: var(--navy);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    font-size: 14px;
+  }
+  header.strip .title { font-size: 18px; font-weight: 700; margin-right: auto; }
+  .badge { padding: 3px 10px; border-radius: 12px; font-weight: 700; font-size: 12px; }
+  .badge.verified { background: #1e6b2f; color: #fff; }
+  .badge.error { background: #8a1f1f; color: #fff; }
+  .badge.unknown { background: #555; color: #fff; }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .full { grid-column: 1 / -1; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .card h2 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    color: var(--navy);
+    border-bottom: 2px solid var(--navy);
+    padding-bottom: 6px;
+  }
+  .kv { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-weight: 600; }
+
+  .upload-form { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .upload-form .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .upload-form input[type=text], .upload-form input[type=number] {
+    padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; width: 140px;
+  }
+  .upload-form input[type=file] { font-size: 13px; }
+  .upload-form button {
+    background: var(--navy); color: #fff; border: none; border-radius: 6px;
+    padding: 9px 20px; font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .upload-form button:hover { background: var(--navy-light); }
+  .upload-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .form-status { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child, td:first-child, th.left, td.left { text-align: left; }
+  thead th {
+    background: var(--navy); color: #fff; position: sticky; top: 0; cursor: pointer; user-select: none;
+  }
+  thead th:hover { background: var(--navy-light); }
+  thead th.sorted::after { content: " " attr(data-arrow); }
+  tbody tr:nth-child(even) { background: #f9fafc; }
+  .table-scroll { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .col-group-call { background: #eef3fb; }
+  .col-group-put { background: #fbeff0; }
+  .col-strike { background: #f0f0f0; font-weight: 700; text-align: center; }
+
+  .disclaimer {
+    background: #fdecea; color: var(--red); border: 0.5px solid var(--red);
+    border-radius: 6px; padding: 8px 12px; font-size: 11px; margin-top: 18px;
+  }
+  .action-badge {
+    background: var(--amber-bg); color: var(--amber); border: 0.5px solid var(--amber);
+    border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 700; margin-bottom: 10px;
+  }
+
+  .progress-wrap { margin: 10px 0; }
+  .progress-bar { background: #e5e9f0; border-radius: 8px; height: 16px; overflow: hidden; }
+  .progress-fill { background: var(--green); height: 100%; transition: width 0.3s; }
+  .progress-fill.negative { background: var(--red); }
+  .progress-label { font-size: 12px; margin-top: 4px; color: var(--muted); }
+
+  .evo-text { font-size: 13px; margin-bottom: 12px; min-height: 20px; }
+  .evo-buttons button {
+    padding: 8px 16px; border-radius: 6px; border: none; font-weight: 700;
+    cursor: pointer; margin-right: 8px; font-size: 13px;
+  }
+  .btn-approve { background: var(--green); color: #fff; }
+  .btn-reject { background: var(--red); color: #fff; }
+  .evo-buttons button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .evo-status { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+  a.download-btn {
+    display: inline-block; background: var(--navy); color: #fff; text-decoration: none;
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 700;
+  }
+  a.download-btn:hover { background: var(--navy-light); }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 30px; font-size: 13px; }
+  #results { display: none; }
+</style>
+</head>
+<body>
+
+<header class="strip">
+  <div class="title">NIFTY Options Dashboard</div>
+  <div id="hdrStatus"><span class="badge unknown">No analysis yet</span></div>
+</header>
+
+<main>
+  <div class="card full">
+    <h2>Upload &amp; Analyze</h2>
+    <form class="upload-form" id="uploadForm">
+      <div class="field">
+        <label for="csvFile">NSE Most Active Contracts CSV</label>
+        <input type="file" id="csvFile" name="csv_file" accept=".csv" required>
+      </div>
+      <button type="submit" id="analyzeBtn">Analyze</button>
+    </form>
+    <div class="form-status" id="formStatus"></div>
+    <div class="form-status">Spot and expiry are read directly from the CSV. India VIX / ATM IV / IV Skew / Gamma are not available from this data source.</div>
+  </div>
+
+  <div class="disclaimer full">
+    PAPER TRADING SIMULATION ONLY. No real orders are placed. Nothing on this page is investment advice.
+  </div>
+
+  <div id="results">
+    <div id="errorBanner" class="disclaimer" style="display:none;"></div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>2. Institutional Sentiment</h2>
+        <div class="kv"><span class="k">Sentiment</span><span class="v" id="sentLabel">-</span></div>
+        <div id="sentReasoning" style="font-size:13px; margin:8px 0; color:var(--muted);"></div>
+        <div class="kv"><span class="k">Money Bias</span><span class="v" id="moneyBias">-</span></div>
+        <div class="kv"><span class="k">Call Money (Cr)</span><span class="v" id="callMoney">-</span></div>
+        <div class="kv"><span class="k">Put Money (Cr)</span><span class="v" id="putMoney">-</span></div>
+        <div id="ivSkewNote" style="font-size:12px; margin-top:8px; color:var(--muted);"></div>
+      </div>
+
+      <div class="card">
+        <h2>3. Market Ranges</h2>
+        <div class="kv"><span class="k">Max Pain (Weekly)</span><span class="v" id="maxPainWeekly">-</span></div>
+        <div class="kv"><span class="k">Max Pain (Monthly)</span><span class="v" id="maxPainMonthly">-</span></div>
+        <div class="kv"><span class="k">ATM Strike</span><span class="v" id="atmStrike">-</span></div>
+        <div class="kv"><span class="k">ATM Straddle</span><span class="v" id="atmStraddle">-</span></div>
+        <div class="kv"><span class="k">Expiry</span><span class="v" id="weeklyExpiry">-</span></div>
+      </div>
+
+      <div class="card full">
+        <h2>4. Strike Data Table (click a header to sort)</h2>
+        <div class="table-scroll">
+          <table id="strikeTable">
+            <thead>
+              <tr>
+                <th class="col-group-call" data-key="callOI">Call OI</th>
+                <th class="col-group-call" data-key="callInterval">Call ΔOI Interval</th>
+                <th class="col-group-call" data-key="callMoney">Call ₹Cr</th>
+                <th class="col-group-call left" data-key="callConviction">Call Conviction</th>
+                <th class="col-strike" data-key="strike">Strike</th>
+                <th class="col-group-put left" data-key="putConviction">Put Conviction</th>
+                <th class="col-group-put" data-key="putMoney">Put ₹Cr</th>
+                <th class="col-group-put" data-key="putInterval">Put ΔOI Interval</th>
+                <th class="col-group-put" data-key="putOI">Put OI</th>
+              </tr>
+            </thead>
+            <tbody id="strikeTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h2>5. Action &amp; Ledger</h2>
+        <div class="action-badge">
+          SIMULATED PAPER TRADE IDEA - NOT A REAL ORDER. Stop-loss/target are enforced automatically by the system, not by Gemini.
+        </div>
+        <div class="kv"><span class="k">Decision</span><span class="v" id="actionType">-</span></div>
+        <div class="kv"><span class="k">Instrument</span><span class="v" id="actionInstrument">-</span></div>
+        <div class="kv"><span class="k">Qty / Price</span><span class="v" id="actionQtyPrice">-</span></div>
+        <div class="kv"><span class="k">Stop Loss / Target</span><span class="v" id="actionSlTarget">-</span></div>
+        <div id="actionReasoning" style="font-size:13px; margin:8px 0; color:var(--muted);"></div>
+
+        <div class="kv"><span class="k">LTP / Net Spread vs Entry</span><span class="v" id="ltpSpread">-</span></div>
+        <div class="kv"><span class="k">Realized P&amp;L (this upload)</span><span class="v" id="realizedPnl">-</span></div>
+        <div class="kv"><span class="k">Unrealized P&amp;L (current)</span><span class="v" id="unrealizedPnl">-</span></div>
+
+        <h3 style="font-size:13px; margin: 16px 0 6px;">Portfolio</h3>
+        <div class="kv"><span class="k">Starting Capital</span><span class="v" id="startCapital">-</span></div>
+        <div class="kv"><span class="k">Running Capital</span><span class="v" id="runningCapital">-</span></div>
+        <div class="kv"><span class="k">Cumulative P&amp;L</span><span class="v" id="cumPnl">-</span></div>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+          <div class="progress-label" id="progressLabel">Progress to target: -</div>
+        </div>
+
+        <h3 style="font-size:13px; margin: 16px 0 6px;">Open Position</h3>
+        <div id="openPosition" class="kv"><span class="k">None</span><span class="v"></span></div>
+
+        <h3 style="font-size:13px; margin: 16px 0 6px;">Recent Trade History</h3>
+        <div class="table-scroll" style="max-height:260px;">
+          <table>
+            <thead>
+              <tr>
+                <th class="left">Timestamp</th><th class="left">Instrument</th><th>Action</th><th>Qty</th>
+                <th>Entry</th><th>Exit</th><th>SL</th><th>Target</th><th>Realized</th><th>Unrealized</th><th>Capital</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerHistoryBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h2>6. Evolution Suggestion</h2>
+        <div class="evo-text" id="evoText">-</div>
+        <div class="evo-buttons">
+          <button class="btn-approve" id="btnApprove">Approve</button>
+          <button class="btn-reject" id="btnReject">Reject</button>
+        </div>
+        <div class="evo-status" id="evoStatus"></div>
+      </div>
+
+      <div class="card full">
+        <h2>Report</h2>
+        <a class="download-btn" id="downloadPdfLink" href="#" target="_blank">Download PDF</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let sortState = { key: "strike", dir: 1 };
+let lastStrikeRows = [];
+let currentSuggestion = "";
+
+function fmtNum(v, digits) {
+  if (v === null || v === undefined || v === "") return "-";
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  return n.toLocaleString(undefined, { minimumFractionDigits: digits ?? 0, maximumFractionDigits: digits ?? 2 });
+}
+function fmtSigned(v) {
+  if (v === null || v === undefined || v === "") return "n/a";
+  const n = Number(v);
+  return (n >= 0 ? "+" : "") + n.toLocaleString();
+}
+function fmtMoney(v) {
+  if (v === null || v === undefined || v === "") return "-";
+  return "Rs " + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function groupByStrike(strikeMetrics) {
+  const map = new Map();
+  for (const e of strikeMetrics || []) {
+    if (!map.has(e.strike)) map.set(e.strike, { strike: e.strike });
+    const row = map.get(e.strike);
+    const p = e.option_type === "CE" ? "call" : "put";
+    row[p + "OI"] = e.absolute_oi;
+    row[p + "Interval"] = e.oi_interval_delta;
+    row[p + "Money"] = e.premium_money_cr;
+    row[p + "Conviction"] = e.conviction;
+  }
+  return Array.from(map.values());
+}
+
+function sortRows(rows, key, dir) {
+  return [...rows].sort((a, b) => {
+    let av = a[key], bv = b[key];
+    if (av === null || av === undefined) av = -Infinity;
+    if (bv === null || bv === undefined) bv = -Infinity;
+    if (typeof av === "string" || typeof bv === "string") {
+      return dir * String(av).localeCompare(String(bv));
+    }
+    return dir * (Number(av) - Number(bv));
+  });
+}
+
+function renderStrikeTable() {
+  const sorted = sortRows(lastStrikeRows, sortState.key, sortState.dir);
+  const body = document.getElementById("strikeTableBody");
+  if (!sorted.length) {
+    body.innerHTML = '<tr><td colspan="9" class="empty-state">No strike data</td></tr>';
+    return;
+  }
+  body.innerHTML = sorted.map(r => `
+    <tr>
+      <td class="col-group-call">${fmtNum(r.callOI)}</td>
+      <td class="col-group-call">${fmtSigned(r.callInterval)}</td>
+      <td class="col-group-call">${fmtNum(r.callMoney, 2)}</td>
+      <td class="col-group-call left">${r.callConviction ?? "-"}</td>
+      <td class="col-strike">${fmtNum(r.strike, 0)}</td>
+      <td class="col-group-put left">${r.putConviction ?? "-"}</td>
+      <td class="col-group-put">${fmtNum(r.putMoney, 2)}</td>
+      <td class="col-group-put">${fmtSigned(r.putInterval)}</td>
+      <td class="col-group-put">${fmtNum(r.putOI)}</td>
+    </tr>
+  `).join("");
+
+  document.querySelectorAll("#strikeTable thead th").forEach(th => {
+    th.classList.remove("sorted");
+    th.removeAttribute("data-arrow");
+    if (th.dataset.key === sortState.key) {
+      th.classList.add("sorted");
+      th.setAttribute("data-arrow", sortState.dir === 1 ? "▲" : "▼");
+    }
+  });
+}
+
+document.querySelectorAll("#strikeTable thead th").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    sortState.dir = sortState.key === key ? -sortState.dir : 1;
+    sortState.key = key;
+    renderStrikeTable();
+  });
+});
+
+function renderLedgerHistory(rows) {
+  const body = document.getElementById("ledgerHistoryBody");
+  if (!rows || !rows.length) {
+    body.innerHTML = '<tr><td colspan="11" class="empty-state">No trades yet</td></tr>';
+    return;
+  }
+  body.innerHTML = [...rows].reverse().map(r => `
+    <tr>
+      <td class="left">${r.timestamp ?? "-"}</td>
+      <td class="left">${r.instrument ?? "-"}</td>
+      <td>${r.action ?? "-"}</td>
+      <td>${r.qty ?? "-"}</td>
+      <td>${r.entry_price ?? "-"}</td>
+      <td>${r.exit_price || "-"}</td>
+      <td>${r.stop_loss ?? "-"}</td>
+      <td>${r.target ?? "-"}</td>
+      <td>${r.realized_pnl || "-"}</td>
+      <td>${r.unrealized_pnl ?? "-"}</td>
+      <td>${fmtMoney(r.running_capital)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderEvolution(suggestion) {
+  currentSuggestion = suggestion || "";
+  document.getElementById("evoText").textContent = currentSuggestion || "No suggestion yet.";
+  document.getElementById("evoStatus").textContent = "";
+  document.getElementById("btnApprove").disabled = !currentSuggestion;
+  document.getElementById("btnReject").disabled = !currentSuggestion;
+}
+
+async function submitEvolutionDecision(choice) {
+  document.getElementById("btnApprove").disabled = true;
+  document.getElementById("btnReject").disabled = true;
+  try {
+    const res = await fetch("/api/evolution/decision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ choice, suggestion: currentSuggestion }),
+    });
+    const data = await res.json();
+    document.getElementById("evoStatus").textContent = res.ok
+      ? `Logged: ${choice.toUpperCase()} at ${data.logged.split(" | ")[0]}`
+      : `Error: ${data.error}`;
+  } catch (err) {
+    document.getElementById("evoStatus").textContent = "Error logging decision: " + err;
+  }
+}
+document.getElementById("btnApprove").addEventListener("click", () => submitEvolutionDecision("approve"));
+document.getElementById("btnReject").addEventListener("click", () => submitEvolutionDecision("reject"));
+
+function autoDownload(url) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function renderError(data) {
+  document.getElementById("results").style.display = "block";
+  const statusEl = document.getElementById("hdrStatus");
+  statusEl.innerHTML = '<span class="badge error">Error</span>';
+  const errBanner = document.getElementById("errorBanner");
+  errBanner.style.display = "block";
+  errBanner.textContent = "1. Sheet Verification: ERROR - " + (data.reason || "unknown error");
+
+  document.getElementById("downloadPdfLink").href = data.pdf_url || "#";
+  if (data.pdf_url) autoDownload(data.pdf_url);
+}
+
+function render(data) {
+  document.getElementById("results").style.display = "block";
+  const statusEl = document.getElementById("hdrStatus");
+  statusEl.innerHTML = '<span class="badge verified">Verified</span> <span style="margin-left:10px;">' +
+    (data.timestamp || "") + '</span>';
+  document.getElementById("errorBanner").style.display = "none";
+
+  const sentiment = data.sentiment || {};
+  document.getElementById("sentLabel").textContent = sentiment.label || "-";
+  document.getElementById("sentReasoning").textContent = sentiment.reasoning || "";
+  document.getElementById("moneyBias").textContent = data.money_bias || "-";
+  document.getElementById("callMoney").textContent = fmtNum(data.total_call_money_cr, 2);
+  document.getElementById("putMoney").textContent = fmtNum(data.total_put_money_cr, 2);
+  document.getElementById("ivSkewNote").textContent =
+    "IV Skew / ATM IV / India VIX: N/A - not available from this data source";
+
+  document.getElementById("maxPainWeekly").textContent = fmtNum(data.max_pain_weekly, 0);
+  document.getElementById("maxPainMonthly").textContent = fmtNum(data.max_pain_monthly, 0);
+  document.getElementById("atmStrike").textContent = fmtNum(data.atm_strike, 0);
+  document.getElementById("atmStraddle").textContent = fmtNum(data.atm_straddle, 2);
+  document.getElementById("weeklyExpiry").textContent = data.weekly_expiry || "-";
+
+  lastStrikeRows = groupByStrike(data.strike_metrics);
+  renderStrikeTable();
+
+  const action = data.action || {};
+  document.getElementById("actionType").textContent = (action.type || "-").toUpperCase();
+  document.getElementById("actionInstrument").textContent = action.instrument || "-";
+  document.getElementById("actionQtyPrice").textContent = `${action.qty ?? 0} @ ${action.price ?? 0}`;
+  document.getElementById("actionSlTarget").textContent = `${action.stop_loss ?? 0} / ${action.target ?? 0}`;
+  document.getElementById("actionReasoning").textContent = action.reasoning || "";
+
+  const led = data.ledger || {};
+  const openPos = led.open_position;
+  const ltp = led.open_position_ltp;
+  if (openPos && ltp !== null && ltp !== undefined) {
+    const netSpread = ltp - Number(openPos.entry_price);
+    document.getElementById("ltpSpread").textContent =
+      `${fmtNum(ltp, 2)} / ${netSpread >= 0 ? "+" : ""}${fmtNum(netSpread, 2)}`;
+  } else {
+    document.getElementById("ltpSpread").textContent = "n/a - no open position";
+  }
+  document.getElementById("realizedPnl").textContent =
+    led.realized_pnl_this_upload !== null && led.realized_pnl_this_upload !== undefined
+      ? fmtMoney(led.realized_pnl_this_upload)
+      : "n/a - no trade closed this upload";
+  document.getElementById("unrealizedPnl").textContent = openPos ? fmtMoney(openPos.unrealized_pnl) : "n/a - no open position";
+
+  document.getElementById("startCapital").textContent = fmtMoney(led.starting_capital);
+  document.getElementById("runningCapital").textContent = fmtMoney(led.running_capital);
+  document.getElementById("cumPnl").textContent = fmtMoney(led.cumulative_pnl);
+
+  const pct = led.progress_pct ?? 0;
+  const fill = document.getElementById("progressFill");
+  fill.style.width = Math.max(0, Math.min(100, pct)) + "%";
+  fill.className = "progress-fill" + (pct < 0 ? " negative" : "");
+  document.getElementById("progressLabel").textContent =
+    `Progress to Rs ${fmtNum(led.profit_target, 0)} target: ${fmtNum(pct, 1)}%`;
+
+  const openPosEl = document.getElementById("openPosition");
+  if (openPos) {
+    openPosEl.innerHTML = `<span class="k">${openPos.instrument}</span>
+      <span class="v">Qty ${openPos.qty} | Entry ${openPos.entry_price} | SL ${openPos.stop_loss} | Target ${openPos.target} | Unrealized ${fmtMoney(openPos.unrealized_pnl)}</span>`;
+  } else {
+    openPosEl.innerHTML = '<span class="k">None</span><span class="v"></span>';
+  }
+
+  renderLedgerHistory(led.recent_history);
+  renderEvolution(data.evolution_suggestion);
+
+  document.getElementById("downloadPdfLink").href = data.pdf_url || "#";
+  if (data.pdf_url) autoDownload(data.pdf_url);
+}
+
+document.getElementById("uploadForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const btn = document.getElementById("analyzeBtn");
+  const status = document.getElementById("formStatus");
+  btn.disabled = true;
+  status.textContent = "Analyzing...";
+
+  try {
+    const formData = new FormData(ev.target);
+    const res = await fetch("/api/analyze", { method: "POST", body: formData });
+    const data = await res.json();
+    status.textContent = "";
+    if (data.status === "Verified") {
+      render(data);
+    } else {
+      renderError(data);
+    }
+  } catch (err) {
+    status.textContent = "Error: " + err;
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
