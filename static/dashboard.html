@@ -136,13 +136,13 @@
     <h2>Upload &amp; Analyze</h2>
     <form class="upload-form" id="uploadForm">
       <div class="field">
-        <label for="csvFile">NSE Most Active Contracts CSV</label>
+        <label for="csvFile">NSE CSV (Most Active Contracts or Option Chain)</label>
         <input type="file" id="csvFile" name="csv_file" accept=".csv" required>
       </div>
       <button type="submit" id="analyzeBtn">Analyze</button>
     </form>
     <div class="form-status" id="formStatus"></div>
-    <div class="form-status">Spot and expiry are read directly from the CSV. India VIX / ATM IV / IV Skew / Gamma are not available from this data source.</div>
+    <div class="form-status">Most Active Contracts: spot/expiry read directly from the sheet, no IV. Option Chain export: spot estimated via put-call parity, expiry read from the filename, real IV/IV Skew included. India VIX is never available either way.</div>
   </div>
 
   <div class="disclaimer full">
@@ -425,8 +425,15 @@ function render(data) {
   document.getElementById("moneyBias").textContent = data.money_bias || "-";
   document.getElementById("callMoney").textContent = fmtNum(data.total_call_money_cr, 2);
   document.getElementById("putMoney").textContent = fmtNum(data.total_put_money_cr, 2);
-  document.getElementById("ivSkewNote").textContent =
-    "IV Skew / ATM IV / India VIX: N/A - not available from this data source";
+  {
+    const ivParts = [];
+    if (data.atm_iv_ce != null) ivParts.push(`Call IV ${fmtNum(data.atm_iv_ce, 2)}%`);
+    if (data.atm_iv_pe != null) ivParts.push(`Put IV ${fmtNum(data.atm_iv_pe, 2)}%`);
+    if (data.iv_skew != null) ivParts.push(`Skew ${fmtNum(data.iv_skew, 2)}`);
+    document.getElementById("ivSkewNote").textContent = ivParts.length
+      ? `ATM IV: ${ivParts.join(" | ")} (India VIX still N/A)`
+      : "IV Skew / ATM IV / India VIX: N/A - not available from this upload's data source";
+  }
 
   document.getElementById("maxPainWeekly").textContent = fmtNum(data.max_pain_weekly, 0);
   document.getElementById("maxPainMonthly").textContent = fmtNum(data.max_pain_monthly, 0);

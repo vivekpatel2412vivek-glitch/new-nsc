@@ -13,11 +13,12 @@ decision, an evolution suggestion) come from the model. This avoids an LLM
 re-deriving or transcribing financial figures that code already computes
 exactly.
 
-The active data source (NSE's Most Active Contracts CSV) doesn't include
-implied volatility at all, so ATM IV / IV Skew / India VIX / Gamma are never
-available here - Gemini is told this explicitly and asked to base its read
-on OI, Volume, and Premium Money signals only, rather than left to guess or
-hallucinate volatility context that was never provided.
+Implied volatility (ATM IV / IV Skew) is only sometimes available, depending
+on which NSE export was uploaded - the Most Active Contracts CSV never has
+it, the full Option Chain export does. Gemini is told explicitly when the
+atm_iv_ce/atm_iv_pe/iv_skew fields are null so it never guesses or
+hallucinates volatility context that wasn't actually provided. India VIX and
+Gamma are never available from any supported data source.
 
 Everything Gemini returns here is a SIMULATED, PAPER-TRADING recommendation.
 No real orders are ever placed from this output. ledger.py tracks the open
@@ -57,14 +58,18 @@ def _build_system_instruction(monthly_expiry: str) -> str:
         "weekly and monthly Max Pain, and ATM Straddle. You are given all of "
         "this as verified input - do not recompute or second-guess the "
         "arithmetic, just interpret it.\n\n"
-        "This data source does NOT include implied volatility - ATM IV, IV "
-        "Skew, India VIX, and Gamma are all unavailable and will not appear "
-        "in your input. Do not mention or guess at them; base your sentiment "
-        "purely on OI positioning, Volume, and Premium Money signals. Note "
-        "also that this sheet lists only the most-active-by-volume contracts, "
-        "not the full option chain, so Max Pain/PCR are directional "
-        "estimates rather than exact full-chain figures - factor that "
-        "uncertainty into your confidence, not into fabricated precision.\n\n"
+        "atm_iv_ce/atm_iv_pe/iv_skew below are null whenever this upload's "
+        "data source doesn't provide implied volatility (e.g. the Most Active "
+        "Contracts export) - do not mention or guess at IV in that case, base "
+        "your sentiment purely on OI positioning, Volume, and Premium Money "
+        "signals. When they ARE present (the full Option Chain export), you "
+        "may factor them into your read. India VIX and Gamma are never "
+        "available from any supported data source - never mention or guess "
+        "at them either way. Note also that a Most Active Contracts upload "
+        "lists only the most-active-by-volume contracts, not the full option "
+        "chain, so Max Pain/PCR computed from it are directional estimates "
+        "rather than exact full-chain figures - factor that uncertainty into "
+        "your confidence, not into fabricated precision.\n\n"
         "If the current (weekly) expiry looks too risky to act on, or a "
         "calendar spread across expiries would be more accurate, you may say "
         "so in your reasoning - this is informational only: no re-fetch of a "
@@ -246,6 +251,9 @@ def get_ai_analysis(
         "monthly_expiry": metrics["monthly_expiry"],
         "atm_strike": metrics["atm_strike"],
         "atm_straddle": metrics["atm_straddle"],
+        "atm_iv_ce": metrics.get("atm_iv_ce"),
+        "atm_iv_pe": metrics.get("atm_iv_pe"),
+        "iv_skew": metrics.get("iv_skew"),
         "pcr_oi": metrics["pcr_oi"],
         "pcr_volume": metrics["pcr_volume"],
         "max_pain_weekly": metrics["max_pain_weekly"],

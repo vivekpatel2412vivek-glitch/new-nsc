@@ -1,13 +1,16 @@
 """Local web dashboard - the sole entrypoint for this tool.
 
-Upload an NSE "Most Active Contracts (by Volume)" CSV export -> click
-Analyze -> results render on screen and a matching PDF is generated for
-download. One upload = one analysis = one PDF. No scheduler, no polling, no
-background loop - /api/analyze runs the entire pipeline synchronously per
-request. Spot and expiry are read directly from the CSV; India VIX/ATM
-IV/IV Skew/Gamma are not available from this data source at all (see
-csv_parser.py) and are surfaced as N/A rather than a manual input or a
-misleading number.
+Upload an NSE options CSV export (either "Most Active Contracts by Volume",
+or the full Option Chain export) -> click Analyze -> results render on
+screen and a matching PDF is generated for download. One upload = one
+analysis = one PDF. No scheduler, no polling, no background loop -
+/api/analyze runs the entire pipeline synchronously per request. Spot and
+expiry are read directly from the CSV when the format provides them, or
+derived (spot via put-call parity, expiry from the filename) when it
+doesn't - see csv_parser.py. India VIX and Gamma are never available from
+either format; ATM IV/IV Skew are only available from the full Option Chain
+export. Anything unavailable is surfaced as N/A rather than a manual input
+or a misleading number.
 
 PAPER TRADING SIMULATION ONLY: this only ever reads the uploaded sheet and
 writes to the local ledger.csv - no real order is ever placed, here or
@@ -162,6 +165,9 @@ def _build_success_result(metrics: dict, ai_analysis: dict, pdf_path: Path) -> d
         "monthly_expiry": metrics["monthly_expiry"],
         "atm_strike": metrics["atm_strike"],
         "atm_straddle": metrics["atm_straddle"],
+        "atm_iv_ce": metrics.get("atm_iv_ce"),
+        "atm_iv_pe": metrics.get("atm_iv_pe"),
+        "iv_skew": metrics.get("iv_skew"),
         "sentiment": ai_analysis.get("institutional_sentiment"),
         "global_money_bias_note": ai_analysis.get("global_money_bias_note"),
         "money_bias": metrics["money_bias"],
@@ -198,7 +204,9 @@ async def analyze(csv_file: UploadFile = File(...)) -> JSONResponse:
     content = await csv_file.read()
 
     try:
-        raw = csv_parser.parse_option_chain_csv(content, timestamp, symbol=config.NSE_SYMBOL)
+        raw = csv_parser.parse_option_chain_csv(
+            content, timestamp, symbol=config.NSE_SYMBOL, filename=csv_file.filename
+        )
     except csv_parser.CSVParseError as exc:
         return JSONResponse(_build_error_result(str(exc), timestamp, run_time))
 

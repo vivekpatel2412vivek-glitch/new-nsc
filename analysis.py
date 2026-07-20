@@ -400,6 +400,7 @@ def build_metrics(
         "nse_timestamp": raw["records"].get("timestamp"),
         "symbol": symbol,
         "spot": spot,
+        "spot_source": raw.get("spot_source", "underlying_value_column"),
         "india_vix": india_vix,
         "expiry": expiry,
         "weekly_expiry": weekly_expiry,

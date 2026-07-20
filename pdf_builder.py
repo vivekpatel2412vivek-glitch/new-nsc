@@ -247,9 +247,14 @@ def build_report(
         )
     )
     if status == "Verified":
+        spot_note = (
+            " (estimated via put-call parity)"
+            if metrics.get("spot_source") == "put_call_parity_estimate"
+            else ""
+        )
         story.append(
             Paragraph(
-                f"Generated {metrics['run_time']} | Spot: {metrics['spot']:.2f} "
+                f"Generated {metrics['run_time']} | Spot: {metrics['spot']:.2f}{spot_note} "
                 f"| Weekly Expiry: {metrics['weekly_expiry']} | Monthly Expiry: "
                 f"{metrics['monthly_expiry']}",
                 _styles["Normal"],
@@ -306,13 +311,24 @@ def build_report(
             _styles["Normal"],
         )
     )
-    story.append(
-        Paragraph(
-            "<b>IV Skew / ATM IV / India VIX:</b> N/A - not available from this "
-            "data source (Most Active Contracts export has no implied volatility)",
-            _styles["Normal"],
+    if metrics.get("iv_skew") is not None:
+        story.append(
+            Paragraph(
+                f"<b>ATM IV:</b> Call {_fmt_num(metrics.get('atm_iv_ce'))}% "
+                f"&nbsp;&nbsp; Put {_fmt_num(metrics.get('atm_iv_pe'))}% "
+                f"&nbsp;&nbsp; <b>IV Skew (Put-Call):</b> {_fmt_num(metrics.get('iv_skew'))} "
+                "&nbsp;&nbsp; India VIX: N/A (not provided by any supported data source)",
+                _styles["Normal"],
+            )
         )
-    )
+    else:
+        story.append(
+            Paragraph(
+                "<b>ATM IV / IV Skew / India VIX:</b> N/A - not available from "
+                "this upload's data source",
+                _styles["Normal"],
+            )
+        )
     story.append(
         Paragraph(
             f"<b>Global Money Value:</b> Call Rs {metrics['total_call_money_cr']:,.2f} Cr "
@@ -341,8 +357,8 @@ def build_report(
     story.append(
         Paragraph(
             f"<b>ATM Straddle:</b> {_fmt_num(metrics['atm_straddle'])} at strike "
-            f"{metrics['atm_strike']:.0f} (N/A if either ATM leg wasn't among "
-            "the most-active contracts this upload)",
+            f"{metrics['atm_strike']:.0f} (N/A if either ATM leg's price wasn't "
+            "available in this upload)",
             _styles["Normal"],
         )
     )
