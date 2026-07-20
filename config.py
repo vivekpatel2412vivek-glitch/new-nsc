@@ -62,13 +62,6 @@ DASHBOARD_HOST = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
 # Render/Railway/Heroku-style platforms inject PORT - prefer it when present.
 DASHBOARD_PORT = int(os.environ.get("PORT", os.environ.get("DASHBOARD_PORT", "8000")))
 
-# HTTP Basic Auth in front of every route - required once this is reachable
-# by anyone other than you (a shared network, or a public deployment), since
-# an unauthenticated dashboard lets anyone burn your Gemini quota or see your
-# paper ledger. See dashboard.py for the auto-generated-password fallback.
-DASHBOARD_USERNAME = os.environ.get("DASHBOARD_USERNAME", "admin")
-DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
-
 # --- Misc --------------------------------------------------------------
 LEDGER_HISTORY_ROWS_IN_REPORT = 10
 

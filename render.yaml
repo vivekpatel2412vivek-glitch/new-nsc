@@ -1,8 +1,11 @@
 # Render blueprint - https://render.com/docs/blueprint-spec
 # Deploy: push this repo to GitHub, then on Render "New +" -> "Blueprint" ->
-# pick this repo. Set GEMINI_API_KEY / DASHBOARD_USERNAME / DASHBOARD_PASSWORD
-# in the Render dashboard after the first deploy (marked sync: false below so
-# they're never committed to the repo).
+# pick this repo. Set GEMINI_API_KEY in the Render dashboard after the first
+# deploy (marked sync: false below so it's never committed to the repo).
+#
+# NOTE: this dashboard has no login - anyone with the URL can use it (and
+# burn your Gemini quota). Fine for sharing with people you trust; don't
+# post the URL publicly.
 #
 # Free-tier caveat: Render's free web services have no persistent disk and
 # spin down after 15 min idle. ledger.csv / data/snapshots / reports / logs
@@ -24,8 +27,4 @@ services:
       - key: PYTHON_VERSION
         value: 3.13.7
       - key: GEMINI_API_KEY
-        sync: false
-      - key: DASHBOARD_USERNAME
-        sync: false
-      - key: DASHBOARD_PASSWORD
         sync: false

@@ -13,25 +13,19 @@ PAPER TRADING SIMULATION ONLY: this only ever reads the uploaded sheet and
 writes to the local ledger.csv - no real order is ever placed, here or
 anywhere else in this project.
 
-Every route requires HTTP Basic Auth (username/password) - required as soon
-as this is reachable by anyone but you, since an open dashboard lets anyone
-with the URL burn your Gemini quota or see your paper ledger. If
-DASHBOARD_PASSWORD isn't set, a random one is generated at startup and
-printed to the log - copy it from there the first time you deploy.
+No login is required - every route is open to anyone with the URL.
 
 Run with `python dashboard.py` - opens at http://localhost:8000.
 """
 import logging
 import re
-import secrets
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import uvicorn
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 import analysis
 import config
@@ -45,32 +39,7 @@ import snapshot_store
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("dashboard")
 
-_effective_password = config.DASHBOARD_PASSWORD
-if not _effective_password:
-    _effective_password = secrets.token_urlsafe(12)
-    logger.warning(
-        "DASHBOARD_PASSWORD not set - generated one for this run. Set "
-        "DASHBOARD_PASSWORD as an env var for a stable password instead.\n"
-        "%s\n  Username: %s\n  Password: %s\n%s",
-        "=" * 60, config.DASHBOARD_USERNAME, _effective_password, "=" * 60,
-    )
-
-_security = HTTPBasic()
-
-
-def verify_credentials(credentials: HTTPBasicCredentials = Depends(_security)) -> str:
-    user_ok = secrets.compare_digest(credentials.username, config.DASHBOARD_USERNAME)
-    pass_ok = secrets.compare_digest(credentials.password, _effective_password)
-    if not (user_ok and pass_ok):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
-
-
-app = FastAPI(title="NIFTY Options Dashboard", dependencies=[Depends(verify_credentials)])
+app = FastAPI(title="NIFTY Options Dashboard")
 
 _DASHBOARD_HTML_PATH = config.STATIC_DIR / "dashboard.html"
 _SAFE_REPORT_FILENAME = re.compile(r"^report_\d{8}_\d{6}\.pdf$")
