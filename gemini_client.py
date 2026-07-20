@@ -55,9 +55,10 @@ def _build_system_instruction(monthly_expiry: str) -> str:
         "Cr, and a Conviction tag (high volume + low OI change = intraday "
         "churn/scalping; high volume + high OI change = institutional "
         "conviction). It has also computed Total Call vs Total Put Money, "
-        "weekly and monthly Max Pain, and ATM Straddle. You are given all of "
-        "this as verified input - do not recompute or second-guess the "
-        "arithmetic, just interpret it.\n\n"
+        "weekly and monthly Max Pain, ATM Straddle, and the top OI walls "
+        "(support = highest PE OI strikes, resistance = highest CE OI "
+        "strikes). You are given all of this as verified input - do not "
+        "recompute or second-guess the arithmetic, just interpret it.\n\n"
         "atm_iv_ce/atm_iv_pe/iv_skew below are null whenever this upload's "
         "data source doesn't provide implied volatility (e.g. the Most Active "
         "Contracts export) - do not mention or guess at IV in that case, base "
@@ -75,6 +76,29 @@ def _build_system_instruction(monthly_expiry: str) -> str:
         "so in your reasoning - this is informational only: no re-fetch of a "
         "different expiry happens automatically as a result, so make your "
         "best call on the data you were actually given.\n\n"
+        "Institutional Trading Framework - use these explicitly, don't just "
+        "restate the numbers:\n"
+        "- Support/resistance walls (top PE/CE OI strikes) mark where large "
+        "OI is concentrated - option writers defend these levels, so selling "
+        "an OTM put just below a strong support wall, or an OTM call just "
+        "above a strong resistance wall, is the classic premium-collection "
+        "trade here. A wall tagged 'Institutional Conviction' (high volume + "
+        "high interval OI delta) is a stronger signal than one tagged "
+        "'Intraday Churn/Scalping' or 'Neutral' - weight your conviction "
+        "accordingly, and say so.\n"
+        "- Long Buildup / Short Buildup / Long Unwinding / Short Covering "
+        "classifications on the top OI movers tell you what's driving the "
+        "move - lean on these over raw OI size alone.\n"
+        "- Any strike you choose for an 'entry' action must be one that "
+        "actually appears in the oi_buildup_top_movers, support, or "
+        "resistance data you were given below - never invent a strike that "
+        "wasn't part of the analyzed data.\n"
+        "- Size stop-loss and target around the actual premium level and "
+        "realistic time-decay/move expectations for the days left to expiry "
+        "- not round numbers picked for convenience. For a premium-selling "
+        "(entry) trade, stop_loss is the price at which being wrong costs an "
+        "acceptable, pre-defined amount of capital; target is a realistic "
+        "decay/buy-back level, not zero.\n\n"
         "Trading & Margin Mandate: Nifty lot size is 65 units. You decide "
         "where, when, and how much margin to deploy - you are not forced to "
         "trade every session. Every trade needs a clear logic and exit "
@@ -92,26 +116,32 @@ def _build_system_instruction(monthly_expiry: str) -> str:
         "'auto_exit_this_run' is non-null, that breach already happened this "
         "upload and closed the position for you; do not issue your own "
         "'exit' for a stop-loss/target you see was already auto-triggered.\n\n"
+        "Reasoning quality bar: every reasoning field must cite at least two "
+        "concrete data points you were actually given (specific strikes, OI "
+        "numbers, conviction tags, PCR, Max Pain, or IV figures) - generic "
+        "language like 'positive sentiment observed' or 'market looks "
+        "bullish' without numbers backing it is not acceptable. Write like an "
+        "analyst justifying a position to a risk committee, not a headline.\n\n"
         "Respond with JSON only - no markdown fences, no preamble or "
         "explanation text, the entire response must be a single valid JSON "
         "object matching this shape exactly:\n"
         "{\n"
         '  "institutional_sentiment": {\n'
         '    "label": "Bullish" | "Bearish" | "Neutral",\n'
-        '    "reasoning": "2-4 sentence reasoning based on OI/Volume/Premium Money only"\n'
+        '    "reasoning": "3-6 sentences, citing specific strikes/OI/PCR/IV numbers from the data given"\n'
         "  },\n"
-        '  "global_money_bias_note": "short read on the call vs put Premium Money split",\n'
+        '  "global_money_bias_note": "short read on the call vs put Premium Money split, with the actual Cr figures",\n'
         '  "action": {\n'
         '    "type": "entry" | "exit" | "hold",\n'
         '    "instrument": "human-readable label, e.g. NIFTY 25000 CE 24-Jul-2026",\n'
-        '    "strike": <strike price as a number, required if type is entry, else 0>,\n'
+        '    "strike": <strike price as a number, required if type is entry - must be one of the strikes in the data given, else 0>,\n'
         '    "option_type": "CE" | "PE" | "",\n'
         '    "expiry": "one of the expiry dates you were given, or empty if not entry",\n'
         '    "qty": <lots, 0 if hold>,\n'
         '    "price": <entry/exit price, 0 if hold>,\n'
         '    "stop_loss": <stop-loss price, 0 if hold>,\n'
         '    "target": <target price, 0 if hold>,\n'
-        '    "reasoning": "why this action, sized for Rs '
+        '    "reasoning": "why this specific strike/side/size, citing the support/resistance wall or OI buildup signal that drove it, sized for Rs '
         f"{config.PORTFOLIO_CAPITAL:,} capital and Rs {config.PROFIT_TARGET:,} "
         'target with a capital buffer maintained"\n'
         "  },\n"
@@ -264,6 +294,8 @@ def get_ai_analysis(
         "total_put_money_cr": metrics["total_put_money_cr"],
         "money_bias": metrics["money_bias"],
         "sheet_verification": metrics.get("data_integrity_status", "Verified"),
+        "support_walls_put_oi": metrics.get("support"),
+        "resistance_walls_call_oi": metrics.get("resistance"),
         "oi_buildup_top_movers": metrics["oi_buildup"],
         "open_position": open_position,
         "auto_exit_this_run": auto_exit_note,
