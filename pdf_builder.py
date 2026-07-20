@@ -132,6 +132,15 @@ def _fmt_num(v, digits: int = 2) -> str:
     return f"{v:,.{digits}f}" if v is not None else "N/A"
 
 
+def _fmt_ts(ts) -> str:
+    """Drop the timezone offset and the "T" separator - the full ISO
+    timestamp (e.g. "2026-07-20T11:35:35+05:30") doesn't fit the ledger
+    table's Timestamp column and overflows into the next one."""
+    if not ts:
+        return ""
+    return str(ts).split("+")[0].replace("T", " ")
+
+
 def _strike_data_table(m: dict) -> Table:
     rows = [["Strike", "Type", "Absolute OI", "ΔOI Interval", "Premium (Cr)", "Conviction"]]
     entries = sorted(m["strike_metrics"], key=lambda e: (e["strike"], e["option_type"]))
@@ -180,7 +189,7 @@ def _position_ledger_table(history: list[dict]) -> Table:
     for h in history:
         rows.append(
             [
-                h.get("timestamp", ""),
+                _fmt_ts(h.get("timestamp", "")),
                 h.get("instrument", ""),
                 h.get("action", ""),
                 h.get("qty", ""),
@@ -340,13 +349,30 @@ def build_report(
 
     # 3. Market Ranges
     story.append(Paragraph("3. Market Ranges", _styles["SectionHeading"]))
-    story.append(
-        Paragraph(
-            "Based on the most-active-by-volume contracts in this upload, not "
-            "the full option chain - directional estimates, not exact full-chain figures.",
-            _styles["Normal"],
+    if metrics.get("spot_source") == "put_call_parity_estimate":
+        story.append(
+            Paragraph(
+                "Computed from the full option chain for this expiry (the Option "
+                "Chain export covers every strike, not just the most-active ones).",
+                _styles["Normal"],
+            )
         )
-    )
+        if metrics["weekly_expiry"] == metrics["monthly_expiry"]:
+            story.append(
+                Paragraph(
+                    "This upload only contains one expiry, so Weekly and Monthly "
+                    "Max Pain below are the same figure, not independently computed.",
+                    _styles["Normal"],
+                )
+            )
+    else:
+        story.append(
+            Paragraph(
+                "Based on the most-active-by-volume contracts in this upload, not "
+                "the full option chain - directional estimates, not exact full-chain figures.",
+                _styles["Normal"],
+            )
+        )
     story.append(
         Paragraph(
             f"<b>Max Pain:</b> Weekly {metrics['max_pain_weekly']:.0f} &nbsp;&nbsp; "
